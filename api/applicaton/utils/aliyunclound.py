@@ -81,7 +81,7 @@ class AliYunClound(object):
 
 
 if __name__ == '__main__':
-    aliyun = AliYunClound(key='LTAI5t6mVXkAmGyoqp8WxTjN', secret='dsCRhXa52eQXT23MkzuLDvUVhZEc4i')
+    aliyun = AliYunClound(key='', secret='')
     mobile = '13729029559'
     template_param = {'code': '55555'}
     sign_name = '阿里云短信测试'
