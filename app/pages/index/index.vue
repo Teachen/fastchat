@@ -26,37 +26,50 @@
     </view>
   </view>
   <view class="submit-layout">
-    <input class="submit-input" placeholder="点击输入，开始聊天吧" v-model="userInput"/>
-    <view class="submit-submit" type="submit" size="mini" @click="sendMessage">发送</view>
+    <input class="submit-input" :disabled="isSending" placeholder="点击输入，开始聊天吧" v-model="userInput"/>
+    <view class="submit-submit" type="submit" size="mini" @click="sendMessage">{{ isSending ? '思考中...' : '发送' }}</view>
   </view>
 </view>
 </template>
 
 <script setup>
-import {ref} from "vue";
+import {nextTick, ref} from "vue";
 import {useStore} from '../../stores';
+import {settings} from '../../settings';
 
 const store = useStore();
 
 const userInput = ref("");
+const isSending = ref(false);
 const messages = ref([{
-    type: 'sender',
-    text: '你是谁？',
-    time: '2024-05-03 14:13:22',
-    photoUrl: 'https://pic1.zhimg.com/80/v2-0aca47cf23db7047d051f03297312d64_720w.webp',
-  },
-   {
     type: 'ai',
-    text: '我是ChatGPT，一个由OpenAI开发的大型语言模型。我基于GPT-4架构构建，旨在通过自然语言处理技术帮助用户解决各种问题、回答问题、提供建议和进行对话。<br><br>我能够理解和生成文本，处理从简单问题到复杂任务的广泛请求，包括但不限于编写代码、创建内容、提供解释和建议、以及进行翻译。我的知识库截止到2023年10月，这意味着我能提供的信息和回答基于我在那之前的训练数据。<br><br>我不是一个真人，而是一个由人工智能驱动的程序，旨在通过文本形式与用户进行互动。我的目的是帮助用户找到他们需要的信息，解决问题，或者提供有价值的对话。',
-    time: '2024-01-26 13:43:15',
-    photoUrl: 'https://www.lulinux.com/d/file/bigpic/az/234906/xldp0zb1vlw.png',
+    sender: 'DeepSeek',
+    text: '你好，我是 DeepSeek 助手，有问题可以直接问我。',
+    time: formatTime(),
+    photoUrl: '',
   }
 ])
 
+function formatTime() {
+  const date = new Date();
+  const pad = (value)=>`${value}`.padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+function formatMessageText(text) {
+  return `${text || ''}`
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>');
+}
+
 const pageScrollToBottom = ()=>{
-    let that = this;
     wx.createSelectorQuery().select('#x_chat').boundingClientRect(function (rect) {
-      let top = rect.height * messages.value.length;
+      if (!rect) {
+        return;
+      }
+      let top = rect.height;
       wx.pageScrollTo({
         scrollTop: top,
         duration: 100
@@ -65,7 +78,7 @@ const pageScrollToBottom = ()=>{
 }
 pageScrollToBottom();
 
-const sendMessage = ()=>{
+const sendMessage = async ()=>{
   if(!store.get_payload()){
     // 如果没有认证Token，则跳转登陆页面
     uni.navigateTo({
@@ -73,16 +86,67 @@ const sendMessage = ()=>{
     });  
   }
 
-  if (userInput.value.trim() === '') return;
+  if (isSending.value || userInput.value.trim() === '') return;
+
+  const content = userInput.value.trim();
   const userMessage = {
     type: 'sender',
-    text: userInput.value,
-    time: '2024-01-26 13:59:12',
-    photoUrl: 'https://pic2.zhimg.com/80/v2-ab37ad93a61fc94135f1c67ea2412c55_720w.webp',
+    sender: '我',
+    text: formatMessageText(content),
+    time: formatTime(),
+    photoUrl: '',
   };
   messages.value.push(userMessage);
   userInput.value = '';
+  isSending.value = true;
+  await nextTick();
   pageScrollToBottom();
+
+  const history = messages.value
+    .filter((message)=>message.type === 'sender' || message.type === 'ai')
+    .slice(-10)
+    .map((message)=>({
+      role: message.type === 'sender' ? 'user' : 'assistant',
+      content: `${message.text}`.replace(/<br>/g, '\n').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'),
+    }));
+
+  try {
+    const response = await uni.request({
+      method: 'POST',
+      url: `${settings.host}/chat`,
+      data: {
+        message: content,
+        history: history.slice(0, -1),
+      },
+      header: {
+        Authorization: `Bearer ${store.get_token()}`,
+      }
+    });
+
+    if (response.data.code !== 200) {
+      throw new Error(response.data.err_msg || '对话失败');
+    }
+
+    messages.value.push({
+      type: 'ai',
+      sender: 'DeepSeek',
+      text: formatMessageText(response.data.reply),
+      time: formatTime(),
+      photoUrl: '',
+    });
+  } catch (error) {
+    messages.value.push({
+      type: 'ai',
+      sender: 'DeepSeek',
+      text: formatMessageText(error?.message || error?.response?.data?.err_msg || '服务暂时不可用，请稍后重试'),
+      time: formatTime(),
+      photoUrl: '',
+    });
+  } finally {
+    isSending.value = false;
+    await nextTick();
+    pageScrollToBottom();
+  }
 }
 
 </script>

@@ -65,3 +65,14 @@ JWT = {
     # 设置令牌过期时间变量（单位：秒）
     'expire_time': 30 * 60
 }
+
+DEEPSEEK = {
+    'api_key': os.environ.get('DEEPSEEK_API_KEY', 'sk-42c98973ec174876971cbc526d46cb7e'),
+    'base_url': os.environ.get('DEEPSEEK_BASE_URL', 'https://api.deepseek.com'),
+    'model': os.environ.get('DEEPSEEK_MODEL', 'deepseek-chat'),
+    'system_prompt': os.environ.get(
+        'DEEPSEEK_SYSTEM_PROMPT',
+        '你是一个专业、准确、简洁的中文 AI 助手。'
+    ),
+    'timeout': int(os.environ.get('DEEPSEEK_TIMEOUT', 60)),
+}
