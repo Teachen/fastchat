@@ -43,8 +43,8 @@ const userInput = ref("");
 const isSending = ref(false);
 const messages = ref([{
     type: 'ai',
-    sender: 'DeepSeek',
-    text: '你好，我是 DeepSeek 助手，有问题可以直接问我。',
+    sender: '闲语',
+    text: '你好，我是情感助手，有问题可以直接问我。',
     time: formatTime(),
     photoUrl: '',
   }
@@ -79,12 +79,12 @@ const pageScrollToBottom = ()=>{
 pageScrollToBottom();
 
 const sendMessage = async ()=>{
-  if(!store.get_payload()){
-    // 如果没有认证Token，则跳转登陆页面
-    uni.navigateTo({
-       url: '/pages/login/login',
-    });  
-  }
+  // if(!store.get_payload()){
+  //   // 如果没有认证Token，则跳转登陆页面
+  //   uni.navigateTo({
+  //      url: '/pages/login/login',
+  //   });  
+  // }
 
   if (isSending.value || userInput.value.trim() === '') return;
 
@@ -118,9 +118,10 @@ const sendMessage = async ()=>{
         message: content,
         history: history.slice(0, -1),
       },
-      header: {
-        Authorization: `Bearer ${store.get_token()}`,
-      }
+      // header: {
+      //   Authorization: `Bearer ${store.get_token()}`,
+      // }
+      header: {}
     });
 
     if (response.data.code !== 200) {
